@@ -458,6 +458,14 @@ func (deepseekReader) ListModels(ctx context.Context, p Provider) ([]Model, erro
 			MaxOutputTokens int      `json:"max_output_tokens"`
 			Effort          any      `json:"effort"`
 			InputModalities []string `json:"input_modalities"`
+			// An OpenAI-compatible relay in front of DeepSeek (OpenCode Go,
+			// 2026-11-02) lists the models.dev shape instead: the window and
+			// the cap under "limit". Without it the window was a 128K guess
+			// for a 1M model and the reply cap the 16K default.
+			Limit struct {
+				Context int `json:"context"`
+				Output  int `json:"output"`
+			} `json:"limit"`
 		} `json:"data"`
 	}
 	if err := getJSON(ctx, modelsURL(p.Base), bearer(p), &raw); err != nil {
@@ -471,6 +479,12 @@ func (deepseekReader) ListModels(ctx context.Context, p Provider) ([]Model, erro
 		name := d.Name
 		if name == "" {
 			name = d.ID
+		}
+		if d.ContextWindow == 0 {
+			d.ContextWindow = d.Limit.Context
+		}
+		if d.MaxOutputTokens == 0 {
+			d.MaxOutputTokens = d.Limit.Output
 		}
 		out = append(out, Model{ID: d.ID, Name: name, Context: d.ContextWindow, MaxOutput: d.MaxOutputTokens, Tools: true,
 			Inputs: d.InputModalities, Effort: d.Effort != nil, Thinking: d.Effort != nil})
