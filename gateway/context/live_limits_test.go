@@ -167,9 +167,14 @@ func TestOutputCapFollowsTheModelsOwn(t *testing.T) {
 	if l, _ := GetModelLimits("small"); l.MaxOutputTokens != 4096 || l.MaxOutputCeiling != 4096 || l.CompactionReserve != 4096 {
 		t.Fatalf("a 4k model: %+v", l)
 	}
-	if l, _ := GetModelLimits("big"); l.MaxOutputTokens != 16384 || l.MaxOutputCeiling != 65536 {
-		t.Fatalf("a 64k model keeps the 16k per-call default, ceiling 64k: %+v", l)
+	if l, _ := GetModelLimits("big"); l.MaxOutputTokens != 32768 || l.MaxOutputCeiling != 65536 || l.CompactionReserve != 32768 {
+		t.Fatalf("a 64k model in a 128k window: its own cap, bounded by a quarter of the window: %+v", l)
 	}
+	SetRemoteWindow(func(string) int { return 1_000_000 })
+	if l, _ := GetModelLimits("big"); l.MaxOutputTokens != 65536 || l.CompactionReserve != 65536 {
+		t.Fatalf("a 64k model in a 1M window gets its full cap: %+v", l)
+	}
+	SetRemoteWindow(func(string) int { return 131072 })
 	if l, _ := GetModelLimits("unknown"); l.MaxOutputTokens != 16384 || l.MaxOutputCeiling != 0 {
 		t.Fatalf("unknown cap: as before: %+v", l)
 	}

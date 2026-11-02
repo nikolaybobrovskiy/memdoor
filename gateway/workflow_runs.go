@@ -225,6 +225,9 @@ func llmTaskMaxTokens(model string, promptChars int) int64 {
 	if err != nil || l.MaxOutputCeiling <= 0 {
 		return reserve
 	}
+	// The floor is the default per-call cap, not this model's own: that can
+	// be its whole ceiling, and a long prompt must still shrink the reply.
+	reserve = min(reserve, int64(ctxmgmt.DefaultOutputTokens))
 	room := int64(l.ContextWindow) - int64(promptChars)/3 - 1024 // a rough token count of the prompt, and a margin
 	cap := int64(l.MaxOutputCeiling)
 	if room < cap {

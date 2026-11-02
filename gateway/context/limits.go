@@ -22,6 +22,10 @@ var remoteOutput func(model string) int
 // SetRemoteOutput registers the model-output-cap probe.
 func SetRemoteOutput(fn func(model string) int) { remoteOutput = fn }
 
+// DefaultOutputTokens is the per-call reply cap of a model whose list does
+// not state its own (and the floor an llm task keeps, workflow_runs.go).
+const DefaultOutputTokens = 16_384
+
 // CompactionCeiling is the most a conversation carries before it compacts,
 // however large the model's window: a 1M-token model at 60% would carry
 // 600K tokens into every request, each one paid for and read (the maintainer,
@@ -69,12 +73,16 @@ func GetModelLimits(model string) (*ModelLimits, error) {
 		if w := remoteWindow(model); w > 0 {
 			// The reply's room is reserved out of the window, so a prompt
 			// under the effective limit always fits with its reply.
-			out := min(w/4, 16_384)
+			// A model whose list states its own output cap gets that cap
+			// (never more than a quarter of the window): held at 16K, a
+			// whole-file patch from a 128K-output model was cut off, and the
+			// cut-off reply could not be recovered. Unstated: 16K, as before.
+			out := min(w/4, DefaultOutputTokens)
 			ceiling := 0
 			if remoteOutput != nil {
 				if o := remoteOutput(model); o > 0 {
 					ceiling = o
-					out = min(out, o)
+					out = min(w/4, o)
 				}
 			}
 			return &ModelLimits{
