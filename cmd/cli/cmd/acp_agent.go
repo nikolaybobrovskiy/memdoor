@@ -72,7 +72,7 @@ func (a *acpAgent) SetAgentConnection(c *acp.AgentSideConnection) { a.conn = c }
 func (a *acpAgent) Initialize(ctx context.Context, params acp.InitializeRequest) (acp.InitializeResponse, error) {
 	return acp.InitializeResponse{
 		ProtocolVersion:   acp.ProtocolVersionNumber,
-		AgentCapabilities: acp.AgentCapabilities{LoadSession: false},
+		AgentCapabilities: acp.AgentCapabilities{LoadSession: false, PromptCapabilities: acpPromptCapabilities},
 		AgentInfo:         &acp.Implementation{Name: "memdoor", Title: acp.Ptr("Memdoor"), Version: Version},
 	}, nil
 }
@@ -100,7 +100,7 @@ func (a *acpAgent) Prompt(_ context.Context, params acp.PromptRequest) (acp.Prom
 	if !ok {
 		return acp.PromptResponse{}, fmt.Errorf("no session %s: session/new first", params.SessionId)
 	}
-	text := promptText(params.Prompt)
+	text := promptText(s.cwd, params.Prompt)
 	if strings.TrimSpace(text) == "" {
 		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
 	}
@@ -343,20 +343,6 @@ func toolPath(input json.RawMessage) string {
 		}
 	}
 	return ""
-}
-
-// promptText joins the prompt's text blocks; an editor may send several.
-func promptText(blocks []acp.ContentBlock) string {
-	var b strings.Builder
-	for _, c := range blocks {
-		if c.Text != nil {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(c.Text.Text)
-		}
-	}
-	return b.String()
 }
 
 func firstLineOf(s string, n int) string {
