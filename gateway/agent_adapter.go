@@ -26,6 +26,8 @@ import (
 // AgentRuntime provides an interface for AI agent interactions
 // Pattern: OpenClaw multi-agent with configuration-based tool filtering
 type AgentRuntime struct {
+	// seeCalls binds a running see call to its turn context (bindSeeCall).
+	seeCalls sync.Map
 	clientFactory       *providers.ClientFactory
 	tools               []tools.ToolDefinition           // All available tools
 	sessionsSpawn       *tools.SessionsSpawnTool         // Special tool with runtime dependencies

@@ -299,8 +299,10 @@ func (ar *AgentRuntime) executeToolUnredacted(ctx context.Context, toolUse *llm.
 	case "recall":
 		toolUse.Input = withHarness(toolUse.Input, map[string]any{"transcript": transcriptKeyOf(session)})
 	case "see":
-		agent, _ := ctx.Value("buddy_agent_name").(string)
-		toolUse.Input = withHarness(toolUse.Input, map[string]any{"agent": agent})
+		// The look runs in THIS turn: its pinned model, its cancellation, its meter.
+		call := ar.bindSeeCall(ctx)
+		defer ar.seeCalls.Delete(call)
+		toolUse.Input = withHarness(toolUse.Input, map[string]any{"call": call, "workdir": turnWorkdir(ctx)})
 	}
 
 	// Confine a codebase agent's file/bash work to a dedicated workspace so a

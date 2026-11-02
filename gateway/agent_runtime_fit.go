@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"memdoor/gateway/compaction"
@@ -456,13 +457,28 @@ func (ar *AgentRuntime) writeSummary(ctx context.Context, agent string, msgs []l
 	return text, nil
 }
 
+// bindSeeCall names a see call after the turn context it runs in, so the
+// look inherits the turn's model pin, cancellation and accounting.
+func (ar *AgentRuntime) bindSeeCall(ctx context.Context) string {
+	call := fmt.Sprintf("see-%d", seeCallSeq.Add(1))
+	ar.seeCalls.Store(call, ctx)
+	return call
+}
+
+var seeCallSeq atomic.Int64
+
 // seePicture shows one picture to the answering model and returns what it
 // saw: the see tool's one-off call, so the conversation itself stays text.
-func (ar *AgentRuntime) seePicture(agent, mediaType, data, question string) (string, error) {
+func (ar *AgentRuntime) seePicture(call, mediaType, data, question string) (string, error) {
 	if ar.clientFactory == nil {
 		return "", fmt.Errorf("see: no model client")
 	}
-	ctx := context.WithValue(context.Background(), "buddy_agent_name", agent)
+	v, ok := ar.seeCalls.Load(call)
+	if !ok {
+		return "", fmt.Errorf("see: not called from a turn")
+	}
+	ctx := v.(context.Context)
+	agent, _ := ctx.Value("buddy_agent_name").(string)
 	client, err := ar.clientFactory.GetClientFor(ctx, agent)
 	if err != nil {
 		return "", err

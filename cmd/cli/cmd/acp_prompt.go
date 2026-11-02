@@ -114,9 +114,19 @@ func savedPicture(cwd, data, mime string, now time.Time, n int) string {
 	}
 	// The picture stays out of commits; .memdoor/workflows stays in them.
 	workflow.EnsureIgnored(cwd)
-	target := filepath.Join(dir, fmt.Sprintf("paste-%s-%d%s", now.Format("20060102-150405"), n, ext))
-	if err := os.WriteFile(target, raw, 0o644); err != nil {
+	// CreateTemp makes the name unique: two prompts in the same second never
+	// overwrite each other's picture.
+	f, err := os.CreateTemp(dir, fmt.Sprintf("paste-%s-%d-*%s", now.Format("20060102-150405"), n, ext))
+	if err != nil {
 		return fmt.Sprintf("(an attached picture could not be saved: %v)", err)
 	}
-	return "@" + target
+	_, err = f.Write(raw)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(f.Name())
+		return fmt.Sprintf("(an attached picture could not be saved: %v)", err)
+	}
+	return "@" + f.Name()
 }

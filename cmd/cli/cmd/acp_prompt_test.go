@@ -55,8 +55,11 @@ func TestAttachmentsBecomeMentionsSavedPicturesAndQuotes(t *testing.T) {
 		{Image: &acp.ContentBlockImage{Type: "image", Data: blob, MimeType: "image/tiff"}},
 	}, now)
 
-	pic1 := filepath.Join(cwd, ".memdoor", "paste-20261102-235901-1.png")
-	pic2 := filepath.Join(cwd, ".memdoor", "paste-20261102-235901-2.png")
+	pics, _ := filepath.Glob(filepath.Join(cwd, ".memdoor", "paste-20261102-235901-*.png"))
+	if len(pics) != 2 {
+		t.Fatalf("saved pictures: %v", pics)
+	}
+	pic1, pic2 := pics[0], pics[1] // -1-… sorts before -2-…
 	want := []string{
 		"fix the header",
 		"@" + src,
@@ -102,5 +105,23 @@ func TestAttachmentPathReadsFileURIs(t *testing.T) {
 		}
 	} else if got := attachmentPath("file:///home/me/a.go", ""); got != "/home/me/a.go" {
 		t.Errorf("a file URI: %q", got)
+	}
+}
+
+// Two prompts in the same second keep both pictures: names never collide.
+func TestPicturesSavedInTheSameSecondDoNotOverwrite(t *testing.T) {
+	cwd := t.TempDir()
+	now := time.Date(2026, 11, 3, 1, 0, 0, 0, time.UTC)
+	img := func(s string) []acp.ContentBlock {
+		return []acp.ContentBlock{{Image: &acp.ContentBlockImage{Type: "image", MimeType: "image/png",
+			Data: base64.StdEncoding.EncodeToString([]byte(s))}}}
+	}
+	a := strings.TrimPrefix(promptTextAt(cwd, img("first"), now), "@")
+	b := strings.TrimPrefix(promptTextAt(cwd, img("second"), now), "@")
+	if a == b {
+		t.Fatalf("same name %s", a)
+	}
+	if got, _ := os.ReadFile(a); string(got) != "first" {
+		t.Fatalf("the first picture was overwritten: %q", got)
 	}
 }
