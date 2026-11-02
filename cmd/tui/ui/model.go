@@ -139,6 +139,11 @@ type Model struct {
 	// for the end-of-turn signal (window_title.go).
 	blurred    bool
 	doneUnseen bool
+	// lastStatus is the OSC 7501 state already sent, so an unchanged state is
+	// not sent again; lastOutcome ("done" or "error") is what the tab shows
+	// once nothing runs (program_status.go).
+	lastStatus  string
+	lastOutcome string
 	// spinFrame and spinning drive the running mark in the title (window_title.go).
 	spinFrame int
 	spinning  bool
@@ -312,7 +317,7 @@ func loadSlashCommands(agent string) []string {
 		commands = append(commands, "/skill:"+name)
 	}
 	// The project's workflows, the same way: "/workflow:release" runs one —
-	// the dropdown completes it (Greg, 2026-10-02: "this workflow slash
+	// the dropdown completes it (the maintainer, 2026-10-02: "this workflow slash
 	// command should be autocomplete with existing workflows").
 	for _, name := range workflowNames(wd) {
 		commands = append(commands, "/workflow:"+name)

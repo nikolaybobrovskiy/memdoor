@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// THE TAB SAYS WHETHER IT IS RUNNING (Greg, 2026-09-27: "is running state for
+// THE TAB SAYS WHETHER IT IS RUNNING (the maintainer, 2026-09-27: "is running state for
 // cmux terminal so that the tab show it is running").
 //
 // A turn can take minutes. Someone who switched tabs has no way to tell whether
@@ -25,7 +25,7 @@ import (
 //	✓ proj          a turn finished and you have not looked yet
 //	proj            idle
 //
-// THE END OF A TURN IS A SIGNAL, NOT JUST THE ABSENCE OF ●  (Greg, 2026-09-27:
+// THE END OF A TURN IS A SIGNAL, NOT JUST THE ABSENCE OF ●  (the maintainer, 2026-09-27:
 // "signal the end of a turn from tab"). A dot that quietly disappears is easy
 // to miss across a row of tabs; a turn that took four minutes deserves to be
 // noticed the moment it lands. So the title keeps a ✓ until the next key or the
@@ -54,7 +54,7 @@ func (m Model) windowTitle() string {
 	}
 }
 
-// spinFrames turn the running mark (Greg, 2026-09-27: "it should be a spinning
+// spinFrames turn the running mark (the maintainer, 2026-09-27: "it should be a spinning
 // circle when it's running"): a still dot reads the same as a stuck one.
 var spinFrames = []string{"◐", "◓", "◑", "◒"}
 
@@ -111,6 +111,7 @@ func (m *Model) titleCmd() tea.Cmd {
 // Called once per busy→idle transition (model_update.go).
 func (m *Model) turnEnded() tea.Cmd {
 	m.doneUnseen = true
+	m.lastOutcome = "done"
 	status := cmuxTurnEnded()
 	if !m.blurred {
 		return status
@@ -132,11 +133,19 @@ func (m *Model) seen() { m.doneUnseen = false }
 // use, model_render.go); the BEL needs none — tmux marks the window itself.
 func ringTerminal(text string) tea.Cmd {
 	return func() tea.Msg {
-		osc := "\x1b]9;" + strings.ReplaceAll(text, "\x07", "") + "\x07"
-		if os.Getenv("TMUX") != "" {
-			osc = "\x1bPtmux;" + strings.ReplaceAll(osc, "\x1b", "\x1b\x1b") + "\x1b\\"
-		}
+		osc := tmuxPassthrough("\x1b]9;" + strings.ReplaceAll(text, "\x07", "") + "\x07")
 		_, _ = os.Stdout.WriteString("\a" + osc)
 		return nil
 	}
+}
+
+// tmuxPassthrough wraps an escape in tmux's DCS passthrough when $TMUX is set,
+// with every ESC in the payload doubled, per the tmux protocol. tmux drops a
+// bare OSC otherwise. The pane needs allow-passthrough on, which the TUI
+// enables at startup.
+func tmuxPassthrough(seq string) string {
+	if os.Getenv("TMUX") == "" {
+		return seq
+	}
+	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
 }
