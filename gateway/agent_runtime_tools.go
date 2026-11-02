@@ -298,6 +298,9 @@ func (ar *AgentRuntime) executeToolUnredacted(ctx context.Context, toolUse *llm.
 			"conversation": conversationOf(ctx).String(), "rules_file": projectRulesFile(turnWorkdir(ctx))})
 	case "recall":
 		toolUse.Input = withHarness(toolUse.Input, map[string]any{"transcript": transcriptKeyOf(session)})
+	case "see":
+		agent, _ := ctx.Value("buddy_agent_name").(string)
+		toolUse.Input = withHarness(toolUse.Input, map[string]any{"agent": agent})
 	}
 
 	// Confine a codebase agent's file/bash work to a dedicated workspace so a
@@ -916,5 +919,5 @@ func toolNeedsInput(name string) bool {
 		return false
 	}
 	return name == "notes" || name == "todo_write" || name == "bash" ||
-		name == "read_file" || name == "skill" || name == "web_fetch"
+		name == "read_file" || name == "skill" || name == "web_fetch" || name == "see"
 }

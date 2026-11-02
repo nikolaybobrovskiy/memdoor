@@ -456,6 +456,47 @@ func (ar *AgentRuntime) writeSummary(ctx context.Context, agent string, msgs []l
 	return text, nil
 }
 
+// seePicture shows one picture to the answering model and returns what it
+// saw: the see tool's one-off call, so the conversation itself stays text.
+func (ar *AgentRuntime) seePicture(agent, mediaType, data, question string) (string, error) {
+	if ar.clientFactory == nil {
+		return "", fmt.Errorf("see: no model client")
+	}
+	ctx := context.WithValue(context.Background(), "buddy_agent_name", agent)
+	client, err := ar.clientFactory.GetClientFor(ctx, agent)
+	if err != nil {
+		return "", err
+	}
+	model, _ := ar.answeringModel(ctx)
+	ctx, cancel := context.WithTimeout(llm.WithUtilityCall(ctx), 3*time.Minute)
+	defer cancel()
+	ask := "Describe this picture for a programmer who cannot see it: what it shows, its layout, every piece of text in it word for word, and anything that looks wrong (errors, overlaps, cut-off or misaligned parts)."
+	if question != "" {
+		ask = "Look at this picture and answer, for a programmer who cannot see it: " + question
+	}
+	resp, err := client.Messages().New(ctx, llm.MessageNewParams{
+		Model: llm.Model(providers.ModelName),
+		Messages: []llm.MessageParam{llm.NewUserMessage(
+			llm.ContentBlockParamUnion{OfImage: &llm.ImageBlockParam{Type: "image", MediaType: mediaType, Data: data}},
+			llm.NewTextBlock(ask))},
+		MaxTokens: maxOutputTokens(model),
+		Agent:     agent,
+	})
+	if err != nil {
+		return "", fmt.Errorf("see: %w", err)
+	}
+	var b strings.Builder
+	for _, c := range resp.Content {
+		if c.Type == "text" {
+			b.WriteString(c.Text)
+		}
+	}
+	if text := strings.TrimSpace(b.String()); text != "" {
+		return text, nil
+	}
+	return "", fmt.Errorf("see: the model said nothing about the picture")
+}
+
 // conversationText renders a conversation for a summary: every text, each
 // tool call on one line, each tool result clipped.
 func conversationText(msgs []llm.MessageParam) string {

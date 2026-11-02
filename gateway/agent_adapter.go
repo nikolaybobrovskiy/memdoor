@@ -218,6 +218,7 @@ func NewAgentRuntimeWithFactory(clientFactory *providers.ClientFactory, apiKey s
 		tools.VerifyDefinition,
 		tools.NotesDefinition,
 		tools.RecallDefinition,
+		tools.SeeDefinition, // look at a pasted screenshot (the coder's prompt names it)
 		// Web tools (OpenClaw parity)
 		tools.WebFetchDefinition,
 		tools.WebSearchDefinition,
@@ -372,6 +373,7 @@ func NewAgentRuntimeWithFactory(clientFactory *providers.ClientFactory, apiKey s
 	}
 	// A stub names its call; recall returns the original from the transcript.
 	tools.SetRecaller(ar.recallOutput)
+	tools.SetSeer(ar.seePicture)
 	tools.SetWebSearchBackend(providers.WebSearch)
 	return ar, nil
 }

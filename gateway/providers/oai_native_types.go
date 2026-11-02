@@ -23,6 +23,32 @@ type chatMessage struct {
 	Content    string         `json:"content,omitempty"`
 	ToolCalls  []chatToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string         `json:"tool_call_id,omitempty"`
+	// Images makes the content an array of parts: the text, then each
+	// picture as a data: URL (OpenAI's image_url part). Requests only.
+	Images []chatImage `json:"-"`
+}
+
+// chatImage is one picture in a user message.
+type chatImage struct{ MediaType, Data string }
+
+// MarshalJSON writes content as parts when the message carries pictures.
+func (m chatMessage) MarshalJSON() ([]byte, error) {
+	type plain chatMessage
+	if len(m.Images) == 0 {
+		return json.Marshal(plain(m))
+	}
+	parts := []map[string]any{}
+	if m.Content != "" {
+		parts = append(parts, map[string]any{"type": "text", "text": m.Content})
+	}
+	for _, im := range m.Images {
+		parts = append(parts, map[string]any{"type": "image_url",
+			"image_url": map[string]string{"url": "data:" + im.MediaType + ";base64," + im.Data}})
+	}
+	return json.Marshal(struct {
+		plain
+		Content []map[string]any `json:"content"`
+	}{plain(m), parts})
 }
 
 type chatToolCall struct {
@@ -190,6 +216,7 @@ func convertAnthropicToOAI(params llm.MessageNewParams) []chatMessage {
 		role := string(msg.Role)
 		content := ""
 		var toolCalls []chatToolCall
+		var images []chatImage
 
 		for _, block := range msg.Content {
 			blockJSON, _ := json.Marshal(block)
@@ -201,12 +228,16 @@ func convertAnthropicToOAI(params llm.MessageNewParams) []chatMessage {
 				ID        string                 `json:"id"`
 				Name      string                 `json:"name"`
 				Input     map[string]interface{} `json:"input"`
+				MediaType string                 `json:"media_type"`
+				Data      string                 `json:"data"`
 			}
 			json.Unmarshal(blockJSON, &bd)
 
 			switch bd.Type {
 			case "text":
 				content += bd.Text
+			case "image":
+				images = append(images, chatImage{MediaType: bd.MediaType, Data: bd.Data})
 			case "tool_result":
 				toolResultContent := toolResultText(bd.Content)
 				messages = append(messages, chatMessage{
@@ -231,8 +262,8 @@ func convertAnthropicToOAI(params llm.MessageNewParams) []chatMessage {
 			}
 		}
 
-		if content != "" || len(toolCalls) > 0 {
-			m := chatMessage{Role: role}
+		if content != "" || len(toolCalls) > 0 || len(images) > 0 {
+			m := chatMessage{Role: role, Images: images}
 			if content != "" {
 				m.Content = content
 			}
