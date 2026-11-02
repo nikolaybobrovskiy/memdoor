@@ -1,7 +1,7 @@
 # What is Memdoor
 
-A coding and automation agent in one CLI binary. Runs on your machine or
-over SSH on another, on your gateway, on your key. No Docker, no Python.
+The workflow harness that makes a small model beat a frontier one, on your machine.
+Five Qwen3.8-27B agents beat Fable 5 on LiveCodeBench Hard, every run published. Ollama, llama.cpp, or any key. One binary, no account.
 
 Headless first: a run starts from a shell script, CI, a schedule, a
 terminal, an IDE or a phone, and finishes from any of them. Four parts:
@@ -97,13 +97,6 @@ Doors onto your gateway: free. The window, ssh, the phone on the gateway's
 address, runs with the laptop closed on [a box that stays on](/docs/gateway).
 Open source, Apache-2.0; a company self-hosts the same way. Enterprise:
 support, by invoice.
-
-Hosted gateway, the one paid thing: memdoor.ai relays the phone to a
-gateway kept to localhost and keeps workflow run state, one table per
-workspace, so a workflow can wait on what another produced from any
-machine. $10 a month, cancel any month. memdoor.ai never supplies a model
-key. A box run by memdoor.ai is next. See
-[memdoor.ai/enterprise](https://memdoor.ai/enterprise).
 
 Install:
 

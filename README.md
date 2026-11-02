@@ -1,8 +1,7 @@
 <div align="center">
   <img src="web/public/icon-512.png" alt="" width="72" height="72">
   <h1>Memdoor</h1>
-  <p><strong>Your daemon agents on every door.</strong><br>A coding and automation agent in one CLI binary. No Docker or Python. Runs on this machine or over SSH on another. Clients: terminal, IDE, phone, script, CI, schedule. On your gateway. On your key.</p>
-  <p>A headless CLI with multi-agent harness</p>
+  <p><strong>The workflow harness that makes a small model beat a frontier one, on your machine.</strong><br>Five Qwen3.8-27B agents beat Fable 5 on LiveCodeBench Hard, every run published. Ollama, llama.cpp, or any key. One binary, no account.</p>
   <p>
     <a href="https://news.ycombinator.com/item?id=50320995"><img alt="Hacker News" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fhacker-news.firebaseio.com%2Fv0%2Fitem%2F50320995.json&query=%24.score&label=Hacker%20News&suffix=%20points&logo=ycombinator&logoColor=white&color=ff6600"></a>
     <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue"></a>
@@ -94,7 +93,6 @@ applied): [memdoor.ai/workflows](https://memdoor.ai/workflows).
 | `/usage` | This month on your key, per model, and what the decision model kept out of the bill |
 | `/remote` | This conversation on your phone: a link and a QR code, the terminal itself, end-to-end encrypted |
 | `/remote view` | A watch-only link: live, no typing, no account, up to 200 viewers. `?live=1` is the terminal alone, for a stream or OBS |
-| `/share` | A read-only link to the conversation, encrypted, secrets removed. `/unshare` deletes it |
 | `/files` or `ctrl+f` | The project's files, the ones this conversation read or changed first, each with what happened to it. Enter previews, `ctrl+d` diffs, `ctrl+e` opens in `$EDITOR`, tab puts `@path` in the prompt |
 | `/graph` or `ctrl+g` | The turn as a graph: the reads, the edits that depended on them, the runs that depended on the edits, the failing check in red |
 | `/mcp` | MCP servers from a URL, a command or a `.mcp.json` snippet |
