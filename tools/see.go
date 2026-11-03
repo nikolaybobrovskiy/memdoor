@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"memdoor/pkg/shared"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ func See(input json.RawMessage) (string, error) {
 	if err := json.Unmarshal(input, &in); err != nil {
 		return "", fmt.Errorf("failed to parse input: %w", err)
 	}
-	path := strings.TrimPrefix(strings.TrimSpace(in.Path), "@")
+	path := shared.NativePath(strings.TrimPrefix(strings.TrimSpace(in.Path), "@"))
 	if path == "" {
 		return "", fmt.Errorf("see: give the picture's path")
 	}

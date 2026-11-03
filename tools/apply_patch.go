@@ -18,6 +18,7 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 
 	"golang.org/x/mod/modfile"
+	"memdoor/pkg/shared"
 )
 
 // apply_patch — the single file tool, ported from OpenClaw (src/agents/apply-patch.ts
@@ -360,6 +361,22 @@ func ApplyPatch(input json.RawMessage) (_ string, err error) {
 			t = filepath.Join(params.Cwd, t)
 		}
 		t = absorbModulePathEcho(t)
+		// The project folder is the fence for every file a patch names, its
+		// move destination included: a drive path (native or the Git Bash
+		// /c/... spelling) outside it is refused before anything is written.
+		if params.Cwd != "" {
+			if !shared.Within(params.Cwd, t) {
+				return "", fmt.Errorf("apply_patch %s: outside the project folder (%s) — nothing was written. Use a path inside it", hunks[i].path, params.Cwd)
+			}
+			if mp := hunks[i].movePath; mp != "" {
+				if !filepath.IsAbs(mp) {
+					mp = filepath.Join(params.Cwd, mp)
+				}
+				if !shared.Within(params.Cwd, mp) {
+					return "", fmt.Errorf("apply_patch %s: moves to %s, outside the project folder (%s) — nothing was written", hunks[i].path, hunks[i].movePath, params.Cwd)
+				}
+			}
+		}
 		targets[i] = t
 		if hunks[i].kind == "add" && strings.HasSuffix(t, ".go") {
 			pendingGoDirs[filepath.Dir(t)] = true
@@ -987,7 +1004,7 @@ func cleanHunkPath(p string) string {
 	p = strings.TrimSpace(p)
 	p = strings.TrimRight(p, "* \t")
 	p = strings.Trim(p, "`'\"")
-	return strings.TrimSpace(p)
+	return shared.NativePath(strings.TrimSpace(p))
 }
 
 func parseOneHunk(lines []string) (patchHunk, int, error) {

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"memdoor/pkg/shared"
 	sharedctx "memdoor/pkg/shared/context"
 )
 
@@ -162,11 +163,13 @@ func coderPathEscape(toolName string, input json.RawMessage, wd string) string {
 	root := filepath.Clean(wd)
 	for _, key := range []string{"path", "file_path"} {
 		p, ok := in[key].(string)
+		if ok {
+			p = shared.NativePath(p) // /i/x from Git Bash is I:/x: fenced like one
+		}
 		if !ok || !filepath.IsAbs(p) {
 			continue
 		}
-		target := filepath.Clean(p)
-		if target == root || strings.HasPrefix(target, root+string(filepath.Separator)) {
+		if shared.Within(root, p) {
 			continue
 		}
 		return "refused: " + p + " is outside your working directory (" + wd +
@@ -279,6 +282,9 @@ func confineToCoderWorkdir(toolName string, input json.RawMessage, wd string) js
 				changed = true
 				continue
 			}
+			if np := shared.NativePath(p); np != p {
+				p, in[key], changed = np, np, true
+			}
 			if p == "" || !filepath.IsAbs(p) {
 				in[key] = filepath.Join(wd, p)
 				changed = true
@@ -324,6 +330,9 @@ func confineToCoderWorkdir(toolName string, input json.RawMessage, wd string) js
 				in[key] = filepath.Join(home, d[2:])
 				changed = true
 			}
+		case shared.NativePath(d) != d:
+			in[key] = shared.NativePath(d) // a Git Bash /i/... dir is the drive's
+			changed = true
 		case !filepath.IsAbs(d):
 			in[key] = filepath.Join(wd, d)
 			changed = true
