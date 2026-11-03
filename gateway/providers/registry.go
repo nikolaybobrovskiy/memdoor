@@ -73,6 +73,10 @@ type Model struct {
 	ContextSource string `json:"context_source,omitempty"`
 	// What the provider's API says the model takes and does (catalogue.go).
 	Inputs   []string `json:"inputs,omitempty"`   // "text", "image" …
+	// TextOnly: the provider explicitly lists the model's inputs and no
+	// picture is among them. Readers that fill Inputs with a placeholder
+	// leave it false, so unknown never reads as "cannot see".
+	TextOnly bool `json:"text_only,omitempty"`
 	Thinking bool     `json:"thinking,omitempty"` // a reasoning/thinking mode
 	Effort   bool     `json:"effort,omitempty"`   // an effort parameter
 }
@@ -417,7 +421,7 @@ func ModelsOf(ctx context.Context, p Provider) ([]Model, error) {
 				d.MaxOutput = m.MaxOutput
 			}
 			if len(d.Inputs) == 0 {
-				d.Inputs = m.Inputs
+				d.Inputs, d.TextOnly = m.Inputs, m.TextOnly
 			}
 			if d.Name == d.ID && m.Name != "" {
 				d.Name = m.Name

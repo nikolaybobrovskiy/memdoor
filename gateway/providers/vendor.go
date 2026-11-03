@@ -155,6 +155,45 @@ func VendorEngine() (re RemoteEngine, ok bool, reason string) {
 	return RemoteEngine{}, false, ""
 }
 
+// DeclaredVendorWindow is MEMDOOR_MODEL_CONTEXT when re is the vendor engine
+// serving the resolved model (provider id and bare model id, so a picker's
+// "deepseek:model" pin counts), else 0: the window the person stated for it.
+func DeclaredVendorWindow(re *RemoteEngine, providerID, modelID string) int {
+	if re == nil || re.Vendor == "" || re.Model != modelID || vendorProviderID(re.Vendor) != providerID {
+		return 0
+	}
+	return envInt("MEMDOOR_MODEL_CONTEXT")
+}
+
+// vendorProviderID is the registry provider a vendor engine is listed under.
+func vendorProviderID(vendor string) string {
+	switch vendor {
+	case VendorGoogle:
+		return "gemini"
+	case VendorGatewayChat:
+		return VendorGateway
+	}
+	return vendor
+}
+
+// TakesPictures reports whether a model accepts images: only an explicit
+// text-only listing says no (unknown is yes; the request then says).
+func TakesPictures(m Model) bool { return !m.TextOnly }
+
+// ExplicitTextOnly is TextOnly for a provider-stated input list: true when the
+// list is present and names no picture type ("image", "image/png" …).
+func ExplicitTextOnly(inputs []string) bool {
+	if len(inputs) == 0 {
+		return false
+	}
+	for _, in := range inputs {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(in)), "image") {
+			return false
+		}
+	}
+	return true
+}
+
 func vendorEngine(vendor, base, key, model string, ctxLen int) RemoteEngine {
 	return RemoteEngine{
 		Name:        VendorEngineName,

@@ -142,6 +142,12 @@ func NewAgentRuntimeWithFactory(clientFactory *providers.ClientFactory, apiKey s
 			// nobody states is a guess, said once per model in the log.
 			if p, m, ok := providers.FindModel(context.Background(), model); ok && m.Context > 0 {
 				if m.ContextSource == providers.ContextDefault {
+					// MEMDOOR_MODEL_CONTEXT is the person's statement for the
+					// vendor model, and beats a provider default (2026-11-03: a
+					// 256K OpenRouter model measured at a guessed 128K).
+					if w := providers.DeclaredVendorWindow(re, p.ID, m.ID); w > 0 {
+						return w
+					}
 					warnGuessedWindow(p.ID, m.ID, m.Context)
 				}
 				return m.Context

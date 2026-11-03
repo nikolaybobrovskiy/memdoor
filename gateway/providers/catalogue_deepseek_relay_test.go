@@ -66,6 +66,9 @@ func TestTheDeepSeekReaderReadsOpenRoutersLimits(t *testing.T) {
 	if m := got["cohere/north-mini-code:free"]; m.Context != 256_000 || m.MaxOutput != 64_000 || len(m.Inputs) != 1 || m.Inputs[0] != "text" {
 		t.Errorf("OpenRouter's limits: %+v", m)
 	}
+	if !got["cohere/north-mini-code:free"].TextOnly || got["only-length"].TextOnly || got["deepseek-v4.1-flash"].TextOnly {
+		t.Errorf("TextOnly only from an explicit text-only list: %+v", got)
+	}
 	if m := got["only-length"]; m.Context != 32_000 || m.MaxOutput != 0 {
 		t.Errorf("a missing cap stays unknown: %+v", m)
 	}

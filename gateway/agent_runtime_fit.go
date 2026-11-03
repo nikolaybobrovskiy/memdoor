@@ -484,6 +484,10 @@ func (ar *AgentRuntime) seePicture(call, mediaType, data, question string) (stri
 		return "", err
 	}
 	model, _ := ar.answeringModel(ctx)
+	// A text-only model would get the picture and fail, or answer blind.
+	if _, m, ok := providers.FindModel(ctx, model); ok && !providers.TakesPictures(m) {
+		return "", fmt.Errorf("see: %s reads text only and cannot look at pictures — switch to a model that takes images, or ask the person to describe it", model)
+	}
 	ctx, cancel := context.WithTimeout(llm.WithUtilityCall(ctx), 3*time.Minute)
 	defer cancel()
 	ask := "Describe this picture for a programmer who cannot see it: what it shows, its layout, every piece of text in it word for word, and anything that looks wrong (errors, overlaps, cut-off or misaligned parts)."

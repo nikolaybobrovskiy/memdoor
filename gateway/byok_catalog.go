@@ -32,6 +32,8 @@ type byokModel struct {
 	Reasoning bool `json:"reasoning,omitempty"`
 	// MaxOutput: the top host's completion cap (top_provider.max_completion_tokens).
 	MaxOutput int `json:"max_output,omitempty"`
+	// Inputs: architecture.input_modalities, as OpenRouter lists them.
+	Inputs []string `json:"inputs,omitempty"`
 }
 
 type byokCatalog struct {
@@ -52,7 +54,8 @@ func byokModels(key string) ([]providers.Model, error) {
 	}
 	out := make([]providers.Model, 0, len(list))
 	for _, m := range list {
-		out = append(out, providers.Model{ID: m.ID, Name: m.Name, Context: m.Context, Tools: m.Tools, InPerM: m.InPerM, OutPerM: m.OutPerM, MaxOutput: m.MaxOutput, Thinking: m.Reasoning})
+		out = append(out, providers.Model{ID: m.ID, Name: m.Name, Context: m.Context, Tools: m.Tools, InPerM: m.InPerM, OutPerM: m.OutPerM, MaxOutput: m.MaxOutput, Thinking: m.Reasoning,
+			Inputs: m.Inputs, TextOnly: providers.ExplicitTextOnly(m.Inputs)})
 	}
 	return out, nil
 }
@@ -100,6 +103,9 @@ func (c *byokCatalog) models(key string) ([]byokModel, error) {
 			TopProvider struct {
 				MaxCompletionTokens int `json:"max_completion_tokens"`
 			} `json:"top_provider"`
+			Architecture struct {
+				InputModalities []string `json:"input_modalities"`
+			} `json:"architecture"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(&raw); err != nil {
@@ -126,7 +132,7 @@ func (c *byokCatalog) models(key string) ([]byokModel, error) {
 		out = append(out, byokModel{
 			ID: m.ID, Name: m.Name, Context: m.ContextLength, Tools: true,
 			Band: byokBand(in), InPerM: in * 1e6, OutPerM: outP * 1e6, Created: m.Created, Reasoning: reasoning,
-			MaxOutput: m.TopProvider.MaxCompletionTokens,
+			MaxOutput: m.TopProvider.MaxCompletionTokens, Inputs: m.Architecture.InputModalities,
 		})
 	}
 	c.list, c.at = out, time.Now()

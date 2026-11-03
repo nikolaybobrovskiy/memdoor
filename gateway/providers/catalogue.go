@@ -302,7 +302,7 @@ func (groqReader) ListModels(ctx context.Context, p Provider) ([]Model, error) {
 			name = d.ID
 		}
 		out = append(out, Model{ID: d.ID, Name: name, Context: d.ContextWindow, MaxOutput: d.MaxCompletionTokens, Tools: true,
-			Inputs: d.InputModalities, InPerM: perMillion(d.Pricing.Prompt), OutPerM: perMillion(d.Pricing.Completion)})
+			Inputs: d.InputModalities, TextOnly: ExplicitTextOnly(d.InputModalities), InPerM: perMillion(d.Pricing.Prompt), OutPerM: perMillion(d.Pricing.Completion)})
 	}
 	return sortModels(out), nil
 }
@@ -421,7 +421,7 @@ func (xaiReader) ListModels(ctx context.Context, p Provider) ([]Model, error) {
 		if d.ID == "" {
 			continue
 		}
-		out = append(out, Model{ID: d.ID, Name: d.ID, Context: d.ContextLength, Tools: true, Inputs: inputs[d.ID]})
+		out = append(out, Model{ID: d.ID, Name: d.ID, Context: d.ContextLength, Tools: true, Inputs: inputs[d.ID], TextOnly: ExplicitTextOnly(inputs[d.ID])})
 	}
 	return sortModels(out), nil
 }
@@ -508,8 +508,9 @@ func (deepseekReader) ListModels(ctx context.Context, p Provider) ([]Model, erro
 		if len(d.InputModalities) == 0 {
 			d.InputModalities = d.Architecture.InputModalities
 		}
+		textOnly := ExplicitTextOnly(d.InputModalities)
 		out = append(out, Model{ID: d.ID, Name: name, Context: d.ContextWindow, MaxOutput: d.MaxOutputTokens, Tools: true,
-			Inputs: d.InputModalities, Effort: d.Effort != nil, Thinking: d.Effort != nil})
+			Inputs: d.InputModalities, TextOnly: textOnly, Effort: d.Effort != nil, Thinking: d.Effort != nil})
 	}
 	return sortModels(out), nil
 }
@@ -562,7 +563,7 @@ func (basetenReader) ListModels(ctx context.Context, p Provider) ([]Model, error
 			continue // a model that cannot call a tool cannot run a turn
 		}
 		out = append(out, Model{ID: d.ID, Name: name, Context: d.ContextLength, MaxOutput: d.MaxCompletionTokens, Tools: true,
-			Inputs: d.InputModalities, Thinking: reasoning, InPerM: perMillion(d.Pricing.Prompt), OutPerM: perMillion(d.Pricing.Completion)})
+			Inputs: d.InputModalities, TextOnly: ExplicitTextOnly(d.InputModalities), Thinking: reasoning, InPerM: perMillion(d.Pricing.Prompt), OutPerM: perMillion(d.Pricing.Completion)})
 	}
 	return sortModels(out), nil
 }
