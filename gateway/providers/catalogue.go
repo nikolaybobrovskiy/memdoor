@@ -466,6 +466,16 @@ func (deepseekReader) ListModels(ctx context.Context, p Provider) ([]Model, erro
 				Context int `json:"context"`
 				Output  int `json:"output"`
 			} `json:"limit"`
+			// OpenRouter (2026-11-03) lists the window as context_length and
+			// the reply cap under top_provider.
+			ContextLength int `json:"context_length"`
+			TopProvider   struct {
+				ContextLength       int `json:"context_length"`
+				MaxCompletionTokens int `json:"max_completion_tokens"`
+			} `json:"top_provider"`
+			Architecture struct {
+				InputModalities []string `json:"input_modalities"`
+			} `json:"architecture"`
 		} `json:"data"`
 	}
 	if err := getJSON(ctx, modelsURL(p.Base), bearer(p), &raw); err != nil {
@@ -485,6 +495,18 @@ func (deepseekReader) ListModels(ctx context.Context, p Provider) ([]Model, erro
 		}
 		if d.MaxOutputTokens == 0 {
 			d.MaxOutputTokens = d.Limit.Output
+		}
+		if d.ContextWindow == 0 {
+			d.ContextWindow = d.TopProvider.ContextLength
+		}
+		if d.ContextWindow == 0 {
+			d.ContextWindow = d.ContextLength
+		}
+		if d.MaxOutputTokens == 0 {
+			d.MaxOutputTokens = d.TopProvider.MaxCompletionTokens
+		}
+		if len(d.InputModalities) == 0 {
+			d.InputModalities = d.Architecture.InputModalities
 		}
 		out = append(out, Model{ID: d.ID, Name: name, Context: d.ContextWindow, MaxOutput: d.MaxOutputTokens, Tools: true,
 			Inputs: d.InputModalities, Effort: d.Effort != nil, Thinking: d.Effort != nil})
