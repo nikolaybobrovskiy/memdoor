@@ -19,10 +19,17 @@ var modelKeys = map[string]bool{
 	"MEMDOOR_SYSTEMONE_API_KEY": true, "AI_GATEWAY_TOKEN": true,
 }
 
+// ProviderKeyPrefix names the variables a launcher hands the gateway keys
+// under for the providers it writes to providers.json (whose "key" names the
+// variable, never the value): MEMDOOR_KEY_<PROVIDER>. A key of any shape —
+// a local bridge's password matches no provider's pattern — so by name.
+const ProviderKeyPrefix = "MEMDOOR_KEY_"
+
 // IsModelKey says whether the variable name holds a key the gateway calls
-// models with: one of modelKeys, or a company AI gateway's <X>_AI_GATEWAY_TOKEN.
+// models with: one of modelKeys, a company AI gateway's <X>_AI_GATEWAY_TOKEN,
+// or a launcher's MEMDOOR_KEY_<PROVIDER>.
 func IsModelKey(name string) bool {
-	return modelKeys[name] || strings.HasSuffix(name, "_AI_GATEWAY_TOKEN")
+	return modelKeys[name] || strings.HasSuffix(name, "_AI_GATEWAY_TOKEN") || strings.HasPrefix(name, ProviderKeyPrefix)
 }
 
 // Env is the environment a command runs with: this process's, without the

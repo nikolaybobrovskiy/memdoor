@@ -34,6 +34,9 @@ type turnRunner interface {
 	Run(ctx context.Context, conversation, cwd, text string, sink turnSink) error
 	// Interrupt stops the running turn of a conversation.
 	Interrupt(ctx context.Context, conversation string) error
+	// SetModel pins a model ("provider:model") on a conversation, for it
+	// alone; "" hands it back to the gateway's model (acp_models.go).
+	SetModel(ctx context.Context, conversation, model string) error
 }
 
 // turnSink is what a turn reports while it runs, and the one thing it may
@@ -51,6 +54,7 @@ type acpSession struct {
 	conversation string
 	cwd          string
 	cancel       context.CancelFunc
+	model        acp.SessionConfigValueId // the model option's value; "" = default
 }
 
 // acpAgent is the ACP agent over a turnRunner.
@@ -59,6 +63,9 @@ type acpAgent struct {
 	conn     *acp.AgentSideConnection
 	mu       sync.Mutex
 	sessions map[acp.SessionId]*acpSession
+	// models are the model option's choices (MEMDOOR_ACP_MODELS); none, no option.
+	models           []acpModel
+	defaultModelName string
 }
 
 var _ acp.Agent = (*acpAgent)(nil)
@@ -90,7 +97,7 @@ func (a *acpAgent) NewSession(ctx context.Context, params acp.NewSessionRequest)
 	a.mu.Lock()
 	a.sessions[id] = &acpSession{conversation: conv, cwd: params.Cwd}
 	a.mu.Unlock()
-	return acp.NewSessionResponse{SessionId: id}, nil
+	return acp.NewSessionResponse{SessionId: id, ConfigOptions: a.modelOptions("")}, nil
 }
 
 func (a *acpAgent) Prompt(_ context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
@@ -168,9 +175,6 @@ func (a *acpAgent) CloseSession(ctx context.Context, params acp.CloseSessionRequ
 }
 func (a *acpAgent) SetSessionMode(ctx context.Context, params acp.SetSessionModeRequest) (acp.SetSessionModeResponse, error) {
 	return acp.SetSessionModeResponse{}, nil
-}
-func (a *acpAgent) SetSessionConfigOption(ctx context.Context, params acp.SetSessionConfigOptionRequest) (acp.SetSessionConfigOptionResponse, error) {
-	return acp.SetSessionConfigOptionResponse{}, acp.NewMethodNotFound(acp.AgentMethodSessionSetConfigOption)
 }
 func (a *acpAgent) Logout(ctx context.Context, params acp.LogoutRequest) (acp.LogoutResponse, error) {
 	return acp.LogoutResponse{}, acp.NewMethodNotFound(acp.AgentMethodLogout)

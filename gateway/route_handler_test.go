@@ -158,3 +158,27 @@ func TestRouteViewNamesTheProvider(t *testing.T) {
 		t.Fatalf("a pin names its provider: %+v", v)
 	}
 }
+
+// keep:false changes this conversation only: the kept pin is neither set
+// nor cleared (an editor session picking its model).
+func TestOnlyAKeptChoiceChangesTheKeptPin(t *testing.T) {
+	no, yes, effort := false, true, "high"
+	for _, c := range []struct {
+		keep   *bool
+		effort *string
+		model  string
+		tier   interface{}
+		want   bool
+	}{
+		{nil, nil, "opencode:qwen3.8-flash", nil, true},
+		{nil, nil, "", "auto", true},
+		{nil, &effort, "", nil, false},
+		{&yes, nil, "x", nil, true},
+		{&no, nil, "opencode:qwen3.8-flash", nil, false},
+		{&no, nil, "", "auto", false},
+	} {
+		if got := pinIsKept(c.keep, c.effort, c.model, c.tier); got != c.want {
+			t.Errorf("%+v: %v", c, got)
+		}
+	}
+}

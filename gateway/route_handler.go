@@ -233,6 +233,16 @@ func setEffort(s *Session, effort string) error {
 	return nil
 }
 
+// pinIsKept says whether a POST changes the kept pin (persistent_pin.go): a
+// model or rung choice does, an effort alone does not, and keep:false never
+// does (an editor session's own choice, cmd/cli/cmd/acp_models.go).
+func pinIsKept(keep *bool, effort *string, model string, tier interface{}) bool {
+	if keep != nil && !*keep {
+		return false
+	}
+	return effort == nil || model != "" || tier != nil
+}
+
 // handleRoute is GET/POST /api/route.
 func (s *Server) handleRoute(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -245,6 +255,10 @@ func (s *Server) handleRoute(w http.ResponseWriter, r *http.Request) {
 		Sort      string      `json:"sort"`   // with it: price | throughput | latency | default
 		Order     string      `json:"order"`  // with it: the person's host order, comma-separated
 		Effort    *string     `json:"effort"` // alone: the reasoning effort, low | medium | high | auto
+		// Keep false: this conversation only. An editor session picking its
+		// model (cmd/cli/cmd/acp_models.go) must not become every new
+		// conversation's default, nor clear the person's kept pin.
+		Keep *bool `json:"keep"`
 	}
 	switch r.Method {
 	case http.MethodGet:
@@ -313,7 +327,7 @@ func (s *Server) handleRoute(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, perr.Error()), http.StatusBadRequest)
 		return
 	}
-	if in.Effort == nil || in.Model != "" || in.Tier != nil {
+	if pinIsKept(in.Keep, in.Effort, in.Model, in.Tier) {
 		// THE PIN STAYS (persistent_pin.go): kept for every new
 		// conversation until auto.
 		var keep *persistentPin

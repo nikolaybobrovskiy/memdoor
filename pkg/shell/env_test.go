@@ -33,7 +33,7 @@ func TestCommandHidesModelKeys(t *testing.T) {
 }
 
 func TestIsModelKey(t *testing.T) {
-	for _, k := range []string{"OPEN_ROUTER_API_KEY", "ANTHROPIC_API_KEY", "MEMDOOR_SYSTEMONE_API_KEY", "CORP_AI_GATEWAY_TOKEN", "AI_GATEWAY_TOKEN"} {
+	for _, k := range []string{"OPEN_ROUTER_API_KEY", "ANTHROPIC_API_KEY", "MEMDOOR_SYSTEMONE_API_KEY", "CORP_AI_GATEWAY_TOKEN", "AI_GATEWAY_TOKEN", "MEMDOOR_KEY_BRIDGE"} {
 		if !IsModelKey(k) {
 			t.Errorf("%s is a model key", k)
 		}
@@ -42,5 +42,24 @@ func TestIsModelKey(t *testing.T) {
 		if IsModelKey(k) {
 			t.Errorf("%s is not a model key", k)
 		}
+	}
+}
+
+// A launcher's provider key leaves no trace in a command's environment even
+// when its value looks like no provider's key (a local bridge's password).
+func TestEnvDropsLaunchersProviderKeys(t *testing.T) {
+	t.Setenv("MEMDOOR_KEY_BRIDGE", "plain-local-password-123")
+	t.Setenv("MEMDOOR_KEYS_ARE_NOT_THIS", "kept")
+	var dropped, kept bool = true, false
+	for _, kv := range Env() {
+		if strings.HasPrefix(kv, "MEMDOOR_KEY_BRIDGE=") || strings.Contains(kv, "plain-local-password-123") {
+			dropped = false
+		}
+		if kv == "MEMDOOR_KEYS_ARE_NOT_THIS=kept" {
+			kept = true
+		}
+	}
+	if !dropped || !kept {
+		t.Fatalf("dropped=%v kept=%v", dropped, kept)
 	}
 }
