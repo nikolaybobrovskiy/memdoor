@@ -171,6 +171,18 @@ func nearSameInput(a, b string) bool {
 		}
 		sa, aStr := va.(string)
 		sb, bStr := vb.(string)
+		if aStr && bStr && nearSamePathKeys[k] {
+			// A PATH IS ITS WHOLE VALUE. The coder's file paths arrive made
+			// absolute (confineToCoderWorkdir), and two files of one deep
+			// project share most of their words: twelve-word paths that
+			// differ in the file name overlapped 10/12, so ten reads of ten
+			// different files ended a healthy turn as "the same call"
+			// (live 2026-11-03 20:10, qwen on a nested .NET project).
+			if strings.TrimSpace(sa) != strings.TrimSpace(sb) {
+				return false
+			}
+			continue
+		}
 		if aStr && bStr {
 			wa, wb := toolWordSet(sa), toolWordSet(sb)
 			if len(wa) < nearSameMinWords || len(wb) < nearSameMinWords {
@@ -197,6 +209,13 @@ const (
 	nearSameOverlap  = 0.8
 	nearSameMinWords = 8
 )
+
+// nearSamePathKeys are the input keys whose value names a file or directory:
+// compared exactly, never by shared words (see nearSameInput).
+var nearSamePathKeys = map[string]bool{
+	"path": true, "file_path": true, "filepath": true, "file": true, "filename": true,
+	"dir": true, "directory": true, "cwd": true, "workdir": true,
+}
 
 func toolWordSet(s string) map[string]bool {
 	out := map[string]bool{}

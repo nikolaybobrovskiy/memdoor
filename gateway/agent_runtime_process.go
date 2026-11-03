@@ -447,6 +447,9 @@ func (ar *AgentRuntime) processMessage(ctx context.Context, userMessage string, 
 		var toolResults []llm.ContentBlockParamUnion
 		var hasToolUse bool
 		var stuck bool // the same tool call has failed maxRepeatedFail times
+		// stuckFailing: the trip was a failure (vs a repeat of a call that
+		// succeeded) — what the nudge and the closing line may say.
+		var stuckFailing bool
 		var responseText string
 		callsThisMessage := 0
 		// The same call several times in ONE reply is a decoding artifact —
@@ -640,6 +643,7 @@ func (ar *AgentRuntime) processMessage(ctx context.Context, userMessage string, 
 					}
 					if repeatedFail[fk] >= maxRepeatedFail || consecutiveFail >= maxConsecutiveFail {
 						stuck = true
+						stuckFailing = true
 					}
 					log.Warn(fmt.Sprintf("Tool call failed: %s — %s", toolUse.Name, truncateForLog(toolInfo.Error, 200)),
 						slog.String("tool", toolUse.Name),
@@ -972,7 +976,7 @@ func (ar *AgentRuntime) processMessage(ctx context.Context, userMessage string, 
 			log.Warn("Loop-breaker: repeated calls or consecutive failures — nudging once",
 				slog.Int("tools_executed", len(response.ToolsExecuted)),
 				slog.Int("consecutive_fail", consecutiveFail))
-			toolResults = append(toolResults, llm.NewTextBlock(loopNudge(response.ToolsExecuted)))
+			toolResults = append(toolResults, llm.NewTextBlock(loopNudge(response.ToolsExecuted, stuckFailing)))
 		} else if stuck {
 			log.Warn("Loop-breaker: repeated calls or consecutive failures — ending turn",
 				slog.Int("tools_executed", len(response.ToolsExecuted)),
@@ -986,8 +990,7 @@ func (ar *AgentRuntime) processMessage(ctx context.Context, userMessage string, 
 			// transcript reads and the person saw a line about a change
 			// (2026-09-18 19:17, "i cant see the end"). The last failure is
 			// the reason; put it in the window.
-			response.Text += "Stopped: the same tool kept failing the same way" + lastToolFailure(response.ToolsExecuted) +
-				". Say what to do differently, or name the exact file and lines."
+			response.Text += loopStopLine(response.ToolsExecuted, stuckFailing)
 			break
 		}
 
@@ -1223,9 +1226,27 @@ func (ar *AgentRuntime) wrapUpTurn(ctx context.Context, conversation []llm.Messa
 // loopNudge is the first word to a turn repeating a failing call: the
 // failure, and that repeating it is over. It rides in the model's next input
 // beside the tool results.
-func loopNudge(executed []ToolExecutionInfo) string {
+func loopNudge(executed []ToolExecutionInfo, failing bool) string {
+	if !failing {
+		// NOTHING FAILED, SO DON'T SAY IT DID. A repeat of a call that
+		// worked tripped this too, and "keeps failing" named no failure
+		// (live 2026-11-03: "Stopped: the same tool kept failing the same
+		// way." after 23 successful calls).
+		return "⚠ You keep repeating the same request and getting the same answer. Do not ask it again: " +
+			"use what you already have, or tell the person what is blocking you and end your turn."
+	}
 	return "⚠ The same tool call keeps failing the same way" + lastToolFailure(executed) +
 		". Do not repeat it. Change your approach, or tell the person what is blocking you and end your turn."
+}
+
+// loopStopLine is the window's last line when the loop-breaker ends a turn:
+// the failure when one tripped it, the repetition when nothing failed.
+func loopStopLine(executed []ToolExecutionInfo, failing bool) string {
+	if !failing {
+		return "Stopped: the same request kept repeating with no new result. Say what to do differently, or name the exact file and lines."
+	}
+	return "Stopped: the same tool kept failing the same way" + lastToolFailure(executed) +
+		". Say what to do differently, or name the exact file and lines."
 }
 
 // exploreNudge is the first word to a turn that reads and reads: make the

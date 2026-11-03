@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -56,5 +57,40 @@ func TestAStuckTurnEndsNamingTheLastFailure(t *testing.T) {
 	}
 	if lastToolFailure([]ToolExecutionInfo{{Name: "x", Output: "y"}}) != "" {
 		t.Fatal("nothing failed, nothing named")
+	}
+}
+
+// Reads of different files in one deep project are different asks, however
+// many words their absolute paths share; the same file twice is the same ask.
+func TestDifferentFilesOfOneProjectAreNotTheSameAsk(t *testing.T) {
+	dir := `I:\Projects\temp\benchmark.ai\qwen\backend\DispatchLab.Core\Domain\`
+	read := func(name string) string {
+		b, _ := json.Marshal(map[string]any{"all": true, "path": dir + name})
+		return string(b)
+	}
+	var earlier []string
+	for _, f := range []string{"CommandEngine.cs", "Orders.cs", "Common.cs", "CommandValidation.cs", "ReadServices.cs", "SimulationClock.cs"} {
+		earlier = append(earlier, read(f))
+	}
+	if n := nearSameAsks(earlier, read("Allocator.cs")); n != 0 {
+		t.Fatalf("a seventh different file counted as %d repeats", n)
+	}
+	if n := nearSameAsks(earlier, read("Orders.cs")); n != 1 {
+		t.Fatalf("the same file again: %d", n)
+	}
+}
+
+// The loop-breaker says a failure only when one tripped it.
+func TestTheLoopBreakerNamesAFailureOnlyWhenThereWasOne(t *testing.T) {
+	ok := []ToolExecutionInfo{{Name: "read_file", Output: "x"}}
+	if s := loopStopLine(ok, false); strings.Contains(s, "failing") {
+		t.Fatalf("repeat called a failure: %q", s)
+	}
+	if s := loopNudge(ok, false); strings.Contains(s, "failing") {
+		t.Fatalf("repeat nudge called a failure: %q", s)
+	}
+	bad := []ToolExecutionInfo{{Name: "apply_patch", Error: "anchor not found"}}
+	if s := loopStopLine(bad, true); !strings.Contains(s, "kept failing") || !strings.Contains(s, "anchor not found") {
+		t.Fatalf("failure line: %q", s)
 	}
 }
